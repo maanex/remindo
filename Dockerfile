@@ -22,4 +22,3 @@ COPY --from=deps --chown=bun:bun /app/node_modules ./node_modules
 COPY --chown=bun:bun . .
 
 CMD ["bun", "run", "src/index.ts"]
-
