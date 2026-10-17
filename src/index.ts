@@ -4,6 +4,8 @@ import { useWithDiscordJs } from "cordo/plugin/djs"
 import { Client, Events, GatewayIntentBits, Partials } from "discord.js"
 import { initReminders } from "./services/reminders"
 import { handleChatMessage } from "./listeners/chat-commands"
+import { initTempVoice } from "./services/temp-voice"
+import { handleChannelDelete, handleVoiceStateUpdate } from "./listeners/temp-voice"
 
 await Cordo.mountCordo({
   client: {
@@ -19,6 +21,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [
     Partials.Channel,
@@ -27,10 +30,13 @@ const client = new Client({
 
 useWithDiscordJs(client);
 client.on(Events.MessageCreate, handleChatMessage);
+client.on(Events.VoiceStateUpdate, handleVoiceStateUpdate);
+client.on(Events.ChannelDelete, handleChannelDelete);
 
 client.once(Events.ClientReady, () => {
   console.log(`Logged in as ${client.user?.tag}`);
   initReminders(client);
+  initTempVoice(client);
 });
 
 client.login(process.env.DISCORD_API_KEY)

@@ -18,6 +18,13 @@ export interface ReminderSub {
   user_id: string
 }
 
+export interface TemporaryChannel {
+  id: string
+  owner_id: string
+  guild_id: string
+  created_at: number
+}
+
 export const schemaSql = `
 CREATE TABLE IF NOT EXISTS reminder (
   id TEXT PRIMARY KEY NOT NULL,
@@ -38,8 +45,17 @@ CREATE TABLE IF NOT EXISTS reminder_sub (
   PRIMARY KEY (reminder_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS temporary_channel (
+  id TEXT PRIMARY KEY NOT NULL,
+  owner_id TEXT NOT NULL,
+  guild_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_reminder_time ON reminder(time);
 CREATE INDEX IF NOT EXISTS idx_reminder_sub_user ON reminder_sub(user_id);
+CREATE INDEX IF NOT EXISTS idx_temporary_channel_owner ON temporary_channel(owner_id);
+CREATE INDEX IF NOT EXISTS idx_temporary_channel_guild ON temporary_channel(guild_id);
 `
 
 export function initSchema(db: Database) {

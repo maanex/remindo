@@ -1,4 +1,4 @@
-import { container, divider, enforcePrivateResponse, linkButton, section, spacer, text } from "cordo/components"
+import { container, enforcePrivateResponse, spacer, text } from "cordo/components"
 import { defineCordoCommand, defineCordoRoute } from "cordo/core"
 import { truncateString } from "../../lib/text"
 
@@ -106,4 +106,3 @@ export default defineCordoCommand({
   ],
   route,
 })
-
