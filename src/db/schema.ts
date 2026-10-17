@@ -25,6 +25,11 @@ export interface TemporaryChannel {
   created_at: number
 }
 
+export interface BotMetadata {
+  key: string
+  value: string
+}
+
 export const schemaSql = `
 CREATE TABLE IF NOT EXISTS reminder (
   id TEXT PRIMARY KEY NOT NULL,
@@ -50,6 +55,11 @@ CREATE TABLE IF NOT EXISTS temporary_channel (
   owner_id TEXT NOT NULL,
   guild_id TEXT NOT NULL,
   created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS bot_metadata (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_reminder_time ON reminder(time);

@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "bun run --watch ./src/index.ts",
-    "test": "DATABASE_URL=:memory: bun test"
+    "test": "DATABASE_URL=:memory: bun test",
+    "import:dump": "bun run ./scripts/import-dump.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

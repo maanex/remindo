@@ -1,4 +1,4 @@
-import { type Channel, type VoiceChannel, type VoiceState } from 'discord.js'
+import { PermissionFlagsBits, type Channel, type VoiceChannel, type VoiceState } from 'discord.js'
 import { cancelDeletion, createTemporaryVoiceChannel, getTemporaryChannelsByOwner, isTemporaryChannel, removeTemporaryChannel, scheduleDeletion } from '../services/temp-voice'
 
 export async function handleVoiceStateUpdate(
@@ -36,6 +36,31 @@ export async function handleVoiceStateUpdate(
       }
 
       const guild = currentChannel.guild
+      const botMember = guild.members.me ?? (await guild.members.fetchMe().catch(() => null))
+      if (!botMember) return
+
+      // Verify bot permissions in the hub channel and category
+      const hubPerms = currentChannel.permissionsFor(botMember)
+      if (
+        !hubPerms?.has(PermissionFlagsBits.MoveMembers) ||
+        !hubPerms?.has(PermissionFlagsBits.ManageChannels)
+      ) {
+        console.warn(
+          `[temp-voice] Bot lacks MoveMembers or ManageChannels permission in hub ${currentChannel.id}`,
+        )
+        return
+      }
+
+      const category = currentChannel.parent
+      if (category) {
+        const catPerms = category.permissionsFor(botMember)
+        if (!catPerms?.has(PermissionFlagsBits.ManageChannels)) {
+          console.warn(
+            `[temp-voice] Bot lacks ManageChannels permission in category ${category.id}`,
+          )
+          return
+        }
+      }
 
       // Check if user has existing temporary channels in this guild
       const existingOwned = getTemporaryChannelsByOwner(guild.id, member.id)
@@ -45,8 +70,8 @@ export async function handleVoiceStateUpdate(
           if (ch && ch.isVoiceBased()) {
             // If empty, delete instantly
             if (ch.members.size === 0) {
-              removeTemporaryChannel(owned.id)
               await ch.delete().catch(() => null)
+              removeTemporaryChannel(owned.id)
             }
             // If occupied, ignore and leave it alone
           } else {
@@ -66,11 +91,17 @@ export async function handleVoiceStateUpdate(
         })
 
         // Move the member to the newly created channel
-        await newState.setChannel(newVoice).catch(async (err) => {
-          console.error(`Failed to move member ${member.id} to new temp channel:`, err)
-          // If moving failed, schedule deletion as safety net
-          scheduleDeletion(newVoice)
-        })
+        try {
+          await newState.setChannel(newVoice)
+        } catch (moveErr) {
+          console.error(
+            `Failed to move member ${member.id} to new temp channel, cleaning up:`,
+            moveErr,
+          )
+          cancelDeletion(newVoice.id)
+          await newVoice.delete().catch(() => null)
+          removeTemporaryChannel(newVoice.id)
+        }
       } catch (err) {
         console.error('Failed to create temporary voice channel:', err)
       }

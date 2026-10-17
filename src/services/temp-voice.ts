@@ -1,7 +1,7 @@
 import { ChannelType, PermissionFlagsBits, type Client, type VoiceChannel } from 'discord.js'
 import { db, type TemporaryChannel } from '../db'
 
-const DELETION_GRACE_PERIOD_MS = 30_000 // 30 seconds
+const DELETION_GRACE_PERIOD_MS = 10_000 // 10 seconds
 
 const deletionTimers = new Map<string, NodeJS.Timeout>()
 
@@ -58,8 +58,10 @@ export function scheduleDeletion(channel: VoiceChannel, delayMs = DELETION_GRACE
       const freshChannel = await channel.guild.channels.fetch(channel.id).catch(() => null)
       if (freshChannel && freshChannel.isVoiceBased()) {
         if (freshChannel.members.size === 0) {
+          await freshChannel.delete().catch((err) => {
+            console.error(`Failed to delete temporary channel ${channel.id}:`, err)
+          })
           removeTemporaryChannel(channel.id)
-          await freshChannel.delete().catch(() => null)
         }
       } else {
         removeTemporaryChannel(channel.id)
@@ -97,6 +99,7 @@ export async function createTemporaryVoiceChannel(params: {
   member: NonNullable<VoiceChannel['members']['first']>
 }): Promise<VoiceChannel> {
   const { guild, categoryId, member } = params
+  const botId = guild.client.user?.id ?? guild.members.me?.id
 
   const channel = await guild.channels.create({
     name: generateChannelName(),
@@ -105,6 +108,14 @@ export async function createTemporaryVoiceChannel(params: {
     userLimit: 16,
     bitrate: guild.maximumBitrate,
     permissionOverwrites: [
+      ...(botId
+        ? [
+            {
+              id: botId,
+              allow: [PermissionFlagsBits.ManageChannels],
+            },
+          ]
+        : []),
       {
         id: member.id,
         allow: [PermissionFlagsBits.ManageChannels],
@@ -117,6 +128,37 @@ export async function createTemporaryVoiceChannel(params: {
 }
 
 // --- Startup Cleanup & Monitoring ---
+
+export async function cleanupOrphanedChannels(client: Client): Promise<void> {
+  for (const guild of client.guilds.cache.values()) {
+    try {
+      const channels = await guild.channels.fetch().catch(() => null)
+      if (!channels) continue
+
+      // Find all categories containing a hub channel (starts with ➕)
+      const hubCategoryIds = new Set<string>()
+      for (const ch of channels.values()) {
+        if (ch && ch.isVoiceBased() && ch.parentId && ch.name.trim().startsWith('➕')) {
+          hubCategoryIds.add(ch.parentId)
+        }
+      }
+
+      // Check all channels in those categories matching channel-xx
+      for (const ch of channels.values()) {
+        if (!ch || !ch.isVoiceBased() || !ch.parentId) continue
+        if (hubCategoryIds.has(ch.parentId) && /^channel-[a-z0-9]{2}$/.test(ch.name)) {
+          const voiceCh = ch as VoiceChannel
+          if (voiceCh.members.size === 0) {
+            await voiceCh.delete().catch(() => null)
+            removeTemporaryChannel(voiceCh.id)
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to cleanup orphaned channels in guild ${guild.id}:`, err)
+    }
+  }
+}
 
 export async function initTempVoice(client: Client): Promise<void> {
   const channels = getAllTemporaryChannels()
@@ -131,12 +173,15 @@ export async function initTempVoice(client: Client): Promise<void> {
 
       const voiceChannel = channel as VoiceChannel
       if (voiceChannel.members.size === 0) {
-        removeTemporaryChannel(record.id)
         await voiceChannel.delete().catch(() => null)
+        removeTemporaryChannel(record.id)
       }
     } catch {
       removeTemporaryChannel(record.id)
     }
   }
+
+  // Also clean up any orphaned empty temp channels created previously that aren't in DB
+  await cleanupOrphanedChannels(client)
 }
 

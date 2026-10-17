@@ -6,6 +6,7 @@ import { initReminders } from "./services/reminders"
 import { handleChatMessage } from "./listeners/chat-commands"
 import { initTempVoice } from "./services/temp-voice"
 import { handleChannelDelete, handleVoiceStateUpdate } from "./listeners/temp-voice"
+import { initBackup } from "./services/backup"
 
 await Cordo.mountCordo({
   client: {
@@ -37,6 +38,7 @@ client.once(Events.ClientReady, () => {
   console.log(`Logged in as ${client.user?.tag}`);
   initReminders(client);
   initTempVoice(client);
+  initBackup();
 });
 
 client.login(process.env.DISCORD_API_KEY)
