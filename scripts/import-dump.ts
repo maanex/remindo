@@ -175,6 +175,8 @@ export type DiscordMessageDetails = {
   plusReactionUserIds?: string[]
 }
 
+const inaccessibleChannels = new Set<string>()
+
 /**
  * Fetches message details and all non-bot users who reacted with ➕ via Discord REST API.
  */
@@ -183,11 +185,22 @@ export async function fetchDiscordMessageDetails(
   messageId: string,
   token: string
 ): Promise<DiscordMessageDetails | null> {
+  // If the bot lacks access to this channel, avoid hitting Discord API and causing rate limits
+  if (inaccessibleChannels.has(channelId)) {
+    return null
+  }
+
   try {
     const msgRes = await fetchWithRateLimit(
       `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
       token
     )
+
+    if (msgRes.status === 403) {
+      inaccessibleChannels.add(channelId)
+      console.warn(`⚠️  Channel ${channelId}: 403 Missing Access. Skipping Discord lookups for this channel.`)
+      return null
+    }
 
     if (!msgRes.ok) {
       return null
@@ -384,7 +397,7 @@ if (import.meta.main) {
   }
 
   const dumpFilePath = path.resolve(args[0] || 'dbdump.txt')
-  const sqliteDbPath = args[1] || process.env.DATABASE_URL || 'sqlite.db'
+  const sqliteDbPath = path.resolve(args[1] || process.env.DATABASE_URL || 'sqlite.db')
 
   if (!fs.existsSync(dumpFilePath)) {
     console.error(`❌ Dump file not found: ${dumpFilePath}`)
@@ -412,11 +425,16 @@ if (import.meta.main) {
 
   console.log(`💾 Opening SQLite database at: ${sqliteDbPath}`)
   const db = new Database(sqliteDbPath)
+  db.exec('PRAGMA journal_mode = WAL;')
   db.exec('PRAGMA foreign_keys = ON;')
 
   const { importedReminders, importedSubs } = await importRemindersToSqlite(db, reminders, {
     discordToken: token,
   })
+
+  // Checkpoint WAL so changes are immediately flushed into the main .db file on disk
+  db.exec('PRAGMA wal_checkpoint(TRUNCATE);')
+
   const elapsed = (performance.now() - startTime).toFixed(1)
 
   console.log(`\n✅ Import completed in ${elapsed}ms:`)
