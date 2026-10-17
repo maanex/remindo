@@ -17,6 +17,13 @@ async function splitTimeAndTitle(input: string): Promise<ParsedChatReminder> {
     }
   }
 
+  if (/^(\d+)([a-zA-Z]+)+$/.test(parts[0]!) && !/^(\d+)([a-zA-Z]+)+$/.test(parts[1] ?? '') && !input.toLowerCase().includes(' and ') && !input.toLowerCase().includes(' und ')) {
+    return {
+      when: parts[0]!,
+      title: parts.slice(1).join(' ').trim() || undefined
+    }
+  }
+
   let previousResule: string | null = null
   let largestI = 0
   for (let i = 1; i <= parts.length; i++) {

@@ -1,7 +1,6 @@
-import { button, container, enforcePrivateResponse, section, text } from "cordo/components"
+import { enforcePrivateResponse, text } from "cordo/components"
 import { defineCordoRoute } from "cordo/core"
-import { goto } from "cordo/functions"
-import { buildReminderComponents, formatReminderTitle, getReminder, registerReminder } from "../../../services/reminders"
+import { buildReminderComponents, getReminder, registerReminder } from "../../../services/reminders"
 import { ms } from "../../../lib/ms"
 
 
@@ -10,21 +9,27 @@ export default defineCordoRoute(async i => {
   if (!reminderId)
     return
 
-  const reminder = await getReminder(reminderId)
-  if (!reminder) {
+  if (i.locals.has('text')) {
     i.render(
       enforcePrivateResponse(),
-      text('Looks like this reminder is a relic of the past...'),
+      text(i.locals.get('text')!),
     )
+    return
+  }
+
+  const reminder = await getReminder(reminderId)
+  if (!reminder) {
+    i.ack()
+    i.locals.set('text', 'Looks like this reminder is a relic of the past...'),
+    i.goto('.', { private: true, asReply: true })
     return
   }
 
   // Only subscribers are allowed to snooze
   if (!reminder.subscribers.includes(i.user.id)) {
-    i.render(
-      enforcePrivateResponse(),
-      text('Vro, this is not your reminder!'),
-    )
+    i.ack()
+    i.locals.set('text', 'Vro, this is not your reminder!')
+    i.goto('.', { private: true, asReply: true })
     return
   }
 
