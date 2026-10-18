@@ -65,7 +65,8 @@ export function formatReminderTitle(title?: string | null, snoozeCount = 0): str
 
 export function buildReminderComponents(data: ReminderData, opts?: { snoozeOpen?: boolean, snoozeText?: string }) {
   const content = formatReminderTitle(data.title, data.snooze_count)
-  const pings = (data.rrule ? '🔄 ' : '⏰ ')
+  // const pings = (data.rrule ? '🔄 ' : '⏰ ')
+  const pings = (data.rrule ? '🔄 ' : '')
     + data.subscribers.map(s => `<@${s}>`).join(' ')
     + ((data.subscribers.length > 1) ? '\n' : '')
 
