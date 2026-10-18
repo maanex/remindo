@@ -12,7 +12,8 @@ export function userMs(str: string): number | undefined {
 
 	const start = new Date()
 	for (const part of multipart) {
-		const [ time, unit ] = part.match(/^([0-9\.,+-]+)([a-zA-Z]+)$/)?.slice(1) ?? []
+		const [ timeStr, unit ] = part.match(/^([0-9\.,+-]+)([a-zA-Z]+)$/)?.slice(1) ?? []
+		let time = Number(timeStr.replace(',', '.'))
 
 		switch (unit) {
 			case 'years':
@@ -20,47 +21,60 @@ export function userMs(str: string): number | undefined {
 			case 'yrs':
 			case 'yr':
 			case 'y':
-				start.setFullYear(start.getFullYear() + Number(time))
-				break
+				start.setFullYear(start.getFullYear() + Math.floor(time))
+				if (time % 1 !== 0)
+					time = (time % 1) * 12
+				else
+					break
 			case 'months':
 			case 'month':
 			case 'mo':
 			case 'M':
-				start.setMonth(start.getMonth() + Number(time))
-				break
+				start.setMonth(start.getMonth() + Math.floor(time))
+				if (time % 1 !== 0)
+					time = (time % 1) * 30.4375
+				else
+					break
 			case 'weeks':
 			case 'week':
 			case 'w':
-				start.setDate(start.getDate() + Number(time) * 7)
-				break
+				start.setDate(start.getDate() + Math.floor(time) * 7)
+				if (time % 1 !== 0)
+					time = (time % 1) * 7
+				else
+					break
 			case 'days':
 			case 'day':
 			case 'd':
-				start.setDate(start.getDate() + Number(time))
-				break
+				start.setDate(start.getDate() + Math.floor(time))
+				if (time % 1 !== 0)
+					time = (time % 1) * 24
+				else
+					break
 			case 'hours':
 			case 'hour':
 			case 'hrs':
 			case 'hr':
 			case 'h':
-				start.setHours(start.getHours() + Number(time))
+				start.setTime(start.getTime() + time * 60 * 60 * 1000)
 				break
 			case 'minutes':
 			case 'minute':
 			case 'mins':
 			case 'min':
 			case 'm':
-				start.setMinutes(start.getMinutes() + Number(time))
+				start.setTime(start.getTime() + time * 60 * 1000)
 				break
 			case 'seconds':
 			case 'second':
 			case 'secs':
 			case 'sec':
 			case 's':
-				start.setSeconds(start.getSeconds() + Number(time))
+				start.setTime(start.getTime() + time * 1000)
 				break
 		}
 	}
 
 	return start.getTime() - Date.now()
 }
+
