@@ -8,11 +8,11 @@ export function userMs(str: string): number | undefined {
 	}
 	
 	const normalized = str.replace(/^in\s+/i, '').replaceAll(' ', '')
-	const multipart = Array.from(normalized.matchAll(/\d+[a-zA-Z]+/g)).map(m => m[0])
+	const multipart = Array.from(normalized.matchAll(/[0-9\.,+-]+[a-zA-Z]+/g)).map(m => m[0])
 
 	const start = new Date()
 	for (const part of multipart) {
-		const [ time, unit ] = part.match(/^(\d+)([a-zA-Z]+)$/)?.slice(1) ?? []
+		const [ time, unit ] = part.match(/^([0-9\.,+-]+)([a-zA-Z]+)$/)?.slice(1) ?? []
 
 		switch (unit) {
 			case 'years':
