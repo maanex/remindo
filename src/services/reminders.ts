@@ -64,46 +64,41 @@ export function formatReminderTitle(title?: string | null, snoozeCount = 0): str
 }
 
 export function buildReminderComponents(data: ReminderData, opts?: { snoozeOpen?: boolean, snoozeText?: string }) {
-  const content = text(formatReminderTitle(data.title, data.snooze_count))
+  const content = formatReminderTitle(data.title, data.snooze_count)
   const pings = (data.rrule ? '🔄 ' : '⏰ ')
     + data.subscribers.map(s => `<@${s}>`).join(' ')
     + ((data.subscribers.length > 1) ? '\n' : '')
 
-  const out: CordoComponent[] = [
-    text(pings)
-  ]
-
   if (opts?.snoozeOpen) {
-    out.push(
-      content,
+    return [
+      text(pings, content),
       selectString()
         .placeholder('Select Snooze Delay')
         .setOptions(SNOOZE_OPTIONS)
-        .onSubmit(goto(`reminders/${data.id}/snooze`)),
-    )
+        .onSubmit(goto(`reminders/${data.id}/snooze`))
+    ]
   }
-  else if (opts?.snoozeText) {
-    out.push(
-      content,
+  if (opts?.snoozeText) {
+    return [
+      text(pings, content),
       button()
         .emoji('💤')
         .label(opts?.snoozeText!)
         .style('secondary')
         .onClick(goto(`reminders/${data.id}/subscribe`, { private: true, asReply: true })),
-    )
-  }
-  else {
-    out.push(
-      section(content).decorate(
-        button()
-          .emoji('💤')
-          .style('secondary')
-          .onClick(goto(`reminders/${data.id}/snooze`)),
-      )
-    )
+    ]
   }
 
-  return out
+  return [
+    section(
+      text(pings, content),
+    ).decorate(
+      button()
+        .emoji('💤')
+        .style('secondary')
+        .onClick(goto(`reminders/${data.id}/snooze`)),
+    )
+  ]
 }
 
 export function renderReminderComponents(data: ReminderData, opts?: { snoozeOpen?: boolean, snoozeText?: string }): any[] {
