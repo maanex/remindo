@@ -1,4 +1,4 @@
-import { button, container, text } from "cordo/components"
+import { button, section, text, type CordoComponent } from "cordo/components"
 import { goto } from "cordo/functions"
 import { resolveTimeRules } from "./resolve-time"
 import { registerReminder } from "../services/reminders"
@@ -18,8 +18,7 @@ export type CreateReminderResult = {
   registeredTimes: number[]
   detectedRrule: string | null
   messageText: string
-  container: any
-  components: any[]
+  components: CordoComponent[]
 }
 
 export async function createReminder(params: CreateReminderParams): Promise<CreateReminderResult> {
@@ -58,7 +57,8 @@ export async function createReminder(params: CreateReminderParams): Promise<Crea
 
   const subParam = registeredIds.join(',')
   const subscribeButton = button()
-    .label('Remind me too')
+    // .label('Remind me too')
+    .emoji({ id: '1561476169767854190' })
     .onClick(goto(`reminders/${subParam}/subscribe`, { private: true, asReply: true }))
 
   const recurrenceNote = detectedRrule ? ' 🔄' : ''
@@ -72,17 +72,21 @@ export async function createReminder(params: CreateReminderParams): Promise<Crea
         ...(registeredTimes.length > 10 ? [`- ... and ${registeredTimes.length - 10} more`] : []),
       ].join('\n')
 
-  const containerComponent = container(
-    text(messageText),
-    subscribeButton,
-  )
+  // const components = container(
+  //   text(messageText),
+  //   subscribeButton,
+  // )
+  const components = [
+    section(
+      text(messageText)
+    ).decorate(subscribeButton)
+  ]
 
   return {
     registeredIds,
     registeredTimes,
     detectedRrule,
     messageText,
-    container: containerComponent,
-    components: [containerComponent],
+    components,
   }
 }

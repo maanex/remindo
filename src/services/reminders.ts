@@ -1,7 +1,7 @@
 import { MessageFlags, type Client, type TextChannel } from 'discord.js'
 import { nanoid } from 'nanoid'
 import { rrulestr } from 'rrule'
-import { button, container, section, selectString, text } from 'cordo/components'
+import { button, container, section, selectString, text, type CordoComponent } from 'cordo/components'
 import { goto } from 'cordo/functions'
 import { db, type Reminder } from '../db'
 import { ms } from '../lib/ms'
@@ -65,36 +65,45 @@ export function formatReminderTitle(title?: string | null, snoozeCount = 0): str
 
 export function buildReminderComponents(data: ReminderData, opts?: { snoozeOpen?: boolean, snoozeText?: string }) {
   const content = text(formatReminderTitle(data.title, data.snooze_count))
+  const pings = (data.rrule ? '🔄 ' : '⏰ ')
+    + data.subscribers.map(s => `<@${s}>`).join(' ')
+    + ((data.subscribers.length > 1) ? '\n' : '')
 
-  return [
-    text(
-      (data.rrule ? '🔄' : '⏰'),
-      data.subscribers.map(s => `<@${s}>`).join(' ') + ((data.subscribers.length > 1) ? '\n' : '')
-    ),
-    container(
-      section(content).decorate(
-        button()
-          .emoji('💤')
-          .style('secondary')
-          .onClick(goto(`reminders/${data.id}/snooze`)),
-      )
-    ).visible(!opts?.snoozeOpen && !opts?.snoozeText),
-    container(
+  const out: CordoComponent[] = [
+    text(pings)
+  ]
+
+  if (opts?.snoozeOpen) {
+    out.push(
+      content,
+      selectString()
+        .placeholder('Select Snooze Delay')
+        .setOptions(SNOOZE_OPTIONS)
+        .onSubmit(goto(`reminders/${data.id}/snooze`)),
+    )
+  }
+  else if (opts?.snoozeText) {
+    out.push(
       content,
       button()
         .emoji('💤')
         .label(opts?.snoozeText!)
         .style('secondary')
         .onClick(goto(`reminders/${data.id}/subscribe`, { private: true, asReply: true })),
-    ).visible(!opts?.snoozeOpen && !!opts?.snoozeText),
-    container(
-      content,
-      selectString()
-        .placeholder('Select Snooze Delay')
-        .setOptions(SNOOZE_OPTIONS)
-        .onSubmit(goto(`reminders/${data.id}/snooze`)),
-    ).visible(!!opts?.snoozeOpen),
-  ]
+    )
+  }
+  else {
+    out.push(
+      section(content).decorate(
+        button()
+          .emoji('💤')
+          .style('secondary')
+          .onClick(goto(`reminders/${data.id}/snooze`)),
+      )
+    )
+  }
+
+  return out
 }
 
 export function renderReminderComponents(data: ReminderData, opts?: { snoozeOpen?: boolean, snoozeText?: string }): any[] {

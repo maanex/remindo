@@ -26,7 +26,7 @@ const route = defineCordoRoute(async i => {
       sourceId,
     })
 
-    i.render(result.container)
+    i.render(...result.components)
   } catch (err: any) {
     i.render(
       enforcePrivateResponse(),
