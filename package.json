@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun run --watch ./src/index.ts",
     "test": "DATABASE_URL=:memory: bun test",
-    "import:dump": "bun run ./scripts/import-dump.ts"
+    "import:dump": "bun run ./scripts/import-dump.ts",
+    "gpu-time": "bun run ./scripts/gpu-time-live.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

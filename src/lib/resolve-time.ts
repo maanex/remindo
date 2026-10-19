@@ -1,13 +1,13 @@
 import { parse } from 'gpu-time'
 import { rrulestr } from 'rrule'
-import { ms } from './ms'
-import { translateGermanTime } from './translate-de'
+import { translateGermanTime, translateGermanTimeWithMap, type TranslatedGermanTimeResult } from './translate-de'
 import { userMs } from './user-ms'
 
 export type ResolvedTimeEntry = {
   time: number
   rrule: string | null
   sourceText: string
+  labelStart: number
 }
 
 export type ResolveTimeOptions = {
@@ -165,7 +165,7 @@ function resolveAllDayOccurrence(
  * Sequence:
  * 1. Checks simple relative durations with `ms` (e.g. "10m", "in 5 minutes").
  * 2. If unresolved, runs neural schedule parser (`gpu-time`) using Berlin timezone (supporting DST switches).
- * 3. If GPU check yields 0 matches, applies fuzzy DE -> EN dictionary translation and retries `gpu-time`.
+ * 3. If GPU check yields 0 matches, applies DE -> EN dictionary translation and retries `gpu-time`.
  * 4. Extracts the occurrence timestamp (with timezone & DST offset) and any recurrence rule.
  */
 export async function resolveTimeRules(
@@ -190,31 +190,54 @@ export async function resolveTimeRules(
     if (results.length >= maxItems) break
 
     // 1. Try simple relative duration parsing via /lib/ms.ts first
-    const simpleMs = userMs(part)
+    const simpleMs = userMs(part, reference)
     if (typeof simpleMs === 'number' && !isNaN(simpleMs) && simpleMs > 0) {
       results.push({
         time: reference.getTime() + simpleMs,
         rrule: null,
         sourceText: part,
+        labelStart: -1
       })
       continue
     }
 
     // 2. Fall back to neural parser (gpu-time) if ms does not resolve
     try {
+      let translation: TranslatedGermanTimeResult | null = null
       let parsed = await parse(part, {
         reference: reference.toISOString(),
         timeZone,
       })
 
-      // 3. If original query didn't match anything during GPU check, translate DE -> EN and retry gpu-time
+      // 3. If German words, times (e.g. 20uhr), or dates (e.g. 7.5.) exist, parse translated text
+      const transResult = translateGermanTimeWithMap(part)
+      if (transResult.changes.length > 0) {
+        const transParsed = await parse(transResult.text, {
+          reference: reference.toISOString(),
+          timeZone,
+        })
+        if (transParsed && transParsed.occurrences && transParsed.occurrences.length > 0) {
+          parsed = transParsed
+          translation = transResult
+        }
+      }
+
+      // 4. If full query produced no matches, retry prefixes (in case trailing reminder title text confused gpu-time)
       if (!parsed || !parsed.occurrences || parsed.occurrences.length === 0) {
-        const translated = translateGermanTime(part)
-        if (translated.toLowerCase() !== part.toLowerCase()) {
-          parsed = await parse(translated, {
+        const words = part.trim().split(/\s+/)
+        for (let len = words.length - 1; len >= 1; len--) {
+          const prefix = words.slice(0, len).join(' ')
+          const prefixTrans = translateGermanTimeWithMap(prefix)
+          const targetText = prefixTrans.changes.length > 0 ? prefixTrans.text : prefix
+          const prefixParsed = await parse(targetText, {
             reference: reference.toISOString(),
             timeZone,
           })
+          if (prefixParsed && prefixParsed.occurrences && prefixParsed.occurrences.length > 0) {
+            parsed = prefixParsed
+            translation = prefixTrans.changes.length > 0 ? prefixTrans : null
+            break
+          }
         }
       }
 
@@ -253,10 +276,15 @@ export async function resolveTimeRules(
           occurrenceTime = new Date(firstOcc.start).getTime()
         }
 
+        const labelStart = parsed.spans.length > 0
+          ? Math.max(...parsed.spans.map(s => translation ? translation.reverseIndex(s.end) : s.end))
+          : -1
+
         results.push({
           time: occurrenceTime,
           rrule: rruleString,
           sourceText: part,
+          labelStart
         })
         continue
       }
@@ -267,10 +295,15 @@ export async function resolveTimeRules(
           const rule = rrulestr(rruleString)
           const next = rule.after(reference)
           if (next) {
+            const labelStart = parsed.spans.length > 0
+              ? Math.max(...parsed.spans.map(s => translation ? translation.reverseIndex(s.end) : s.end))
+              : -1
+
             results.push({
               time: next.getTime(),
               rrule: rruleString,
               sourceText: part,
+              labelStart
             })
             continue
           }
@@ -285,4 +318,3 @@ export async function resolveTimeRules(
 
   return results
 }
-

@@ -1,5 +1,5 @@
 
-export function userMs(str: string): number | undefined {
+export function userMs(str: string, reference = new Date()): number | undefined {
 	switch (str.trim().toLowerCase()) {
 		case 'surprise':
 		case 'surprise me':
@@ -10,7 +10,8 @@ export function userMs(str: string): number | undefined {
 	const normalized = str.replace(/^in\s+/i, '').replaceAll(' ', '')
 	const multipart = Array.from(normalized.matchAll(/[0-9\.,+-]+[a-zA-Z]+/g)).map(m => m[0])
 
-	const start = new Date()
+	const referenceTime = reference.getTime()
+	const start = new Date(referenceTime)
 	for (const part of multipart) {
 		const [ timeStr, unit ] = part.match(/^([0-9\.,+-]+)([a-zA-Z]+)$/)?.slice(1) ?? []
 		let time = Number(timeStr.replace(',', '.'))
@@ -19,6 +20,9 @@ export function userMs(str: string): number | undefined {
 			case 'years':
 			case 'year':
 			case 'yrs':
+			case 'jahre':
+			case 'jahr':
+			case 'j':
 			case 'yr':
 			case 'y':
 				start.setFullYear(start.getFullYear() + Math.floor(time))
@@ -27,6 +31,8 @@ export function userMs(str: string): number | undefined {
 				else
 					break
 			case 'months':
+			case 'monate':
+			case 'monat':
 			case 'month':
 			case 'mo':
 			case 'M':
@@ -37,6 +43,8 @@ export function userMs(str: string): number | undefined {
 					break
 			case 'weeks':
 			case 'week':
+			case 'wochen':
+			case 'woche':
 			case 'w':
 				start.setDate(start.getDate() + Math.floor(time) * 7)
 				if (time % 1 !== 0)
@@ -45,6 +53,9 @@ export function userMs(str: string): number | undefined {
 					break
 			case 'days':
 			case 'day':
+			case 'tage':
+			case 'tag':
+			case 't':
 			case 'd':
 				start.setDate(start.getDate() + Math.floor(time))
 				if (time % 1 !== 0)
@@ -53,6 +64,8 @@ export function userMs(str: string): number | undefined {
 					break
 			case 'hours':
 			case 'hour':
+			case 'stunden':
+			case 'stunde':
 			case 'hrs':
 			case 'hr':
 			case 'h':
@@ -60,6 +73,7 @@ export function userMs(str: string): number | undefined {
 				break
 			case 'minutes':
 			case 'minute':
+			case 'minuten':
 			case 'mins':
 			case 'min':
 			case 'm':
@@ -67,6 +81,8 @@ export function userMs(str: string): number | undefined {
 				break
 			case 'seconds':
 			case 'second':
+			case 'sekunden':
+			case 'sekunde':
 			case 'secs':
 			case 'sec':
 			case 's':
@@ -75,6 +91,5 @@ export function userMs(str: string): number | undefined {
 		}
 	}
 
-	return start.getTime() - Date.now()
+	return start.getTime() - referenceTime
 }
-

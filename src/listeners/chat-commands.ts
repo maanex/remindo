@@ -8,7 +8,15 @@ export type ParsedChatReminder = {
   title?: string
 }
 
-async function splitTimeAndTitle(input: string): Promise<ParsedChatReminder> {
+export async function splitTimeAndTitle(input: string): Promise<ParsedChatReminder> {
+  if (input.includes(';')) {
+    const [ when, ...titleParts ] = input.split(';')
+    return {
+      when: when!.trim(),
+      title: titleParts.join(';').trim() || undefined
+    }
+  }
+
   const parts = input.trim().split(' ')
 
   if (parts.length === 1) {
@@ -24,30 +32,13 @@ async function splitTimeAndTitle(input: string): Promise<ParsedChatReminder> {
     }
   }
 
-  let previousResule: string | null = null
-  let largestI = 0
-  for (let i = 1; i <= parts.length; i++) {
-    if (i - largestI > 3) break // if the three last words didn't affect the result at all we can stop checking probably
-
-    const whenCandidate = parts.slice(0, i).join(' ')
-    const resolvedEntries = await resolveTimeRules(whenCandidate, { maxItems: 10 })
-
-    // resule is a new word i made up
-    const resule = [
-      String(resolvedEntries.length),
-      ...resolvedEntries.map(e => `${e.time}${e.rrule??'-'}`)
-    ].join(',')
-    if (resule !== previousResule && resolvedEntries.every(e => e.time > Date.now())) {
-      previousResule = resule
-      largestI = i
-    }
-
-    // console.log(resule, new Date(resolvedEntries[0]!.time))
-  }
-
-  return {
-    when: parts.slice(0, largestI).join(' ').trim(),
-    title: parts.slice(largestI).join(' ').trim() || undefined
+  const outer = await resolveTimeRules(input, { maxItems: 10 })
+  const largestI = Math.max(...outer.map(e => e.labelStart), parts[0]!.length)
+  return largestI <= 0 ? {
+    when: input.trim()
+  } : {
+    when: input.slice(0, largestI).trim(),
+    title: input.slice(largestI).trim() || undefined
   }
 }
 
@@ -88,6 +79,8 @@ export async function handleChatMessage(message: Message): Promise<void> {
     await message.reply({
       components: renderCordoComponents(result.components) as any,
       flags: MessageFlags.IsComponentsV2,
+      failIfNotExists: false,
+      allowedMentions: { repliedUser: false },
     })
   } catch {
     return react(message)

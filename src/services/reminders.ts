@@ -1,7 +1,7 @@
 import { MessageFlags, type Client, type TextChannel } from 'discord.js'
 import { nanoid } from 'nanoid'
 import { rrulestr } from 'rrule'
-import { button, container, section, selectString, text, type CordoComponent } from 'cordo/components'
+import { button, section, selectString, text } from 'cordo/components'
 import { goto } from 'cordo/functions'
 import { db, type Reminder } from '../db'
 import { ms } from '../lib/ms'
@@ -485,7 +485,10 @@ export async function triggerReminder(data: ReminderData) {
           reply: data.source_id
             ? { messageReference: data.source_id, failIfNotExists: false }
             : undefined,
-          allowedMentions: { users: data.subscribers },
+          allowedMentions: {
+            users: data.subscribers,
+            repliedUser: false,
+          },
         })
         if (message) sent = true
       }

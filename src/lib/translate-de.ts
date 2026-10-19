@@ -1,31 +1,4 @@
-function levenshtein(a: string, b: string): number {
-  const an = a.length
-  const bn = b.length
-  if (an === 0) return bn
-  if (bn === 0) return an
-
-  const matrix: number[][] = []
-  for (let i = 0; i <= bn; i++) matrix[i] = [i]
-  for (let j = 0; j <= an; j++) matrix[0]![j] = j
-
-  for (let i = 1; i <= bn; i++) {
-    for (let j = 1; j <= an; j++) {
-      if (b[i - 1] === a[j - 1]) {
-        matrix[i]![j] = matrix[i - 1]![j - 1]!
-      } else {
-        matrix[i]![j] = Math.min(
-          matrix[i - 1]![j - 1]! + 1, // substitution
-          matrix[i]![j - 1]! + 1,     // insertion
-          matrix[i - 1]![j]! + 1,     // deletion
-        )
-      }
-    }
-  }
-
-  return matrix[bn]![an]!
-}
-
-const DE_EN_DICT: Record<string, string> = {
+export const DE_EN_DICT: Record<string, string> = {
   // Recurrence / Frequency
   jede: 'every',
   jeden: 'every',
@@ -93,6 +66,12 @@ const DE_EN_DICT: Record<string, string> = {
   jahr: 'year',
   jahre: 'years',
   jahren: 'years',
+  viertelstunde: '15 minutes',
+  viertelstunden: '15 minutes',
+  dreiviertelstunde: '45 minutes',
+  dreiviertelstunden: '45 minutes',
+  halbestunde: '30 minutes',
+  halbestunden: '30 minutes',
 
   // Prepositions / Conjunctions / Modifiers
   um: 'at',
@@ -101,6 +80,10 @@ const DE_EN_DICT: Record<string, string> = {
   im: 'in',
   in: 'in',
   ab: 'from',
+  von: 'from',
+  bis: 'until',
+  vor: 'to',
+  nach: 'past',
   und: 'and',
   naechste: 'next',
   naechsten: 'next',
@@ -113,6 +96,45 @@ const DE_EN_DICT: Record<string, string> = {
   kommende: 'next',
   kommenden: 'next',
   kommendes: 'next',
+
+  // Clock / Fractional times
+  dreiviertel: 'quarter to',
+  viertel: 'quarter',
+  halb: 'half',
+  halbe: 'half',
+  halben: 'half',
+
+  // Numbers
+  null: 'zero',
+  eins: 'one',
+  ein: 'one',
+  eine: 'one',
+  einer: 'one',
+  einem: 'one',
+  einen: 'one',
+  zwei: 'two',
+  zwo: 'two',
+  drei: 'three',
+  vier: 'four',
+  fünf: 'five',
+  fuenf: 'five',
+  sechs: 'six',
+  sieben: 'seven',
+  acht: 'eight',
+  neun: 'nine',
+  zehn: 'ten',
+  elf: 'eleven',
+  zwölf: 'twelve',
+  zwoelf: 'twelve',
+  dreizehn: 'thirteen',
+  vierzehn: 'fourteen',
+  fünfzehn: 'fifteen',
+  fuenfzehn: 'fifteen',
+  sechzehn: 'sixteen',
+  siebzehn: 'seventeen',
+  achtzehn: 'eighteen',
+  neunzehn: 'nineteen',
+  zwanzig: 'twenty',
 
   // Time of day
   mittag: 'noon',
@@ -129,40 +151,208 @@ const DE_EN_DICT: Record<string, string> = {
   nachts: 'night',
 }
 
-function findFuzzyMatch(word: string): string | null {
-  if (DE_EN_DICT[word]) return DE_EN_DICT[word]
-  if (word.length < 3) return null
+export type TextChange = {
+  origStart: number
+  origEnd: number
+  transStart: number
+  transEnd: number
+  origText: string
+  transText: string
+  added: number
+  removed: number
+  diff: number
+}
 
-  let bestKey = ''
-  let minDistance = Infinity
+export type TranslatedGermanTimeResult = {
+  text: string
+  changes: TextChange[]
+  reverseIndex: (transIndex: number) => number
+  forwardIndex: (origIndex: number) => number
+}
 
-  for (const key of Object.keys(DE_EN_DICT)) {
-    const dist = levenshtein(word, key)
-    const maxAllowed = key.length <= 4 ? 1 : 2
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
 
-    if (dist <= maxAllowed && dist < minDistance) {
-      minDistance = dist
-      bestKey = key
+export function translateGermanTimeWithMap(input: string): TranslatedGermanTimeResult {
+  let transText = ''
+  const changes: TextChange[] = []
+  let i = 0
+
+  while (i < input.length) {
+    const isWordStart = i === 0 || !/[\p{L}\d:]/u.test(input[i - 1]!)
+
+    // 1. German numeric dates: e.g. "7.5." or "4.11." or "4.11.2027"
+    if (isWordStart) {
+      const dateMatch = input.slice(i).match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?\.?(?=\s|$)/)
+      if (dateMatch) {
+        const day = Number(dateMatch[1])
+        const month = Number(dateMatch[2])
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+          const matchStr = dateMatch[0]!
+          const origStart = i
+          const origEnd = i + matchStr.length
+          const year = dateMatch[3] ? ` ${dateMatch[3]}` : ''
+          const replacement = `${day} ${MONTH_NAMES[month - 1]}${year}`
+          const transStart = transText.length
+          const transEnd = transStart + replacement.length
+
+          changes.push({
+            origStart,
+            origEnd,
+            transStart,
+            transEnd,
+            origText: matchStr,
+            transText: replacement,
+            added: replacement.length,
+            removed: matchStr.length,
+            diff: replacement.length - matchStr.length,
+          })
+
+          transText += replacement
+          i = origEnd
+          continue
+        }
+      }
     }
+
+    // 2. Clock notation: (\d+)\s*uhr(?!\p{L})
+    const uhrMatch = isWordStart ? input.slice(i).match(/^(\d+)\s*uhr(?!\p{L})/iu) : null
+    if (uhrMatch) {
+      const matchStr = uhrMatch[0]!
+      const origStart = i
+      const origEnd = i + matchStr.length
+      const replacement = `${uhrMatch[1]}:00`
+      const transStart = transText.length
+      const transEnd = transStart + replacement.length
+
+      changes.push({
+        origStart,
+        origEnd,
+        transStart,
+        transEnd,
+        origText: matchStr,
+        transText: replacement,
+        added: replacement.length,
+        removed: matchStr.length,
+        diff: replacement.length - matchStr.length,
+      })
+
+      transText += replacement
+      i = origEnd
+      continue
+    }
+
+    // 2. Word tokens
+    const wordMatch = input.slice(i).match(/^\p{L}+/u)
+    if (wordMatch) {
+      const word = wordMatch[0]!
+      const origStart = i
+      const origEnd = i + word.length
+      const clean = word.toLowerCase()
+      const translation = DE_EN_DICT[clean]
+
+      if (translation !== undefined) {
+        const transStart = transText.length
+        const transEnd = transStart + translation.length
+
+        changes.push({
+          origStart,
+          origEnd,
+          transStart,
+          transEnd,
+          origText: word,
+          transText: translation,
+          added: translation.length,
+          removed: word.length,
+          diff: translation.length - word.length,
+        })
+
+        transText += translation
+        i = origEnd
+        continue
+      } else {
+        transText += word
+        i = origEnd
+        continue
+      }
+    }
+
+    // 3. Characters outside words (spaces, punctuation, digits not followed by uhr)
+    transText += input[i]
+    i++
   }
 
-  return bestKey ? DE_EN_DICT[bestKey]! : null
+  function reverseIndex(transIndex: number): number {
+    if (changes.length === 0) return transIndex
+    if (transIndex <= changes[0]!.transStart) return transIndex
+    const last = changes[changes.length - 1]!
+    if (transIndex >= last.transEnd) {
+      return last.origEnd + (transIndex - last.transEnd)
+    }
+
+    for (let j = 0; j < changes.length; j++) {
+      const c = changes[j]!
+      if (transIndex >= c.transStart && transIndex <= c.transEnd) {
+        if (c.transEnd === c.transStart) return c.origStart
+        const ratio = (transIndex - c.transStart) / (c.transEnd - c.transStart)
+        return Math.round(c.origStart + ratio * (c.origEnd - c.origStart))
+      }
+      if (j < changes.length - 1) {
+        const next = changes[j + 1]!
+        if (transIndex > c.transEnd && transIndex < next.transStart) {
+          return c.origEnd + (transIndex - c.transEnd)
+        }
+      }
+    }
+    return transIndex
+  }
+
+  function forwardIndex(origIndex: number): number {
+    if (changes.length === 0) return origIndex
+    if (origIndex <= changes[0]!.origStart) return origIndex
+    const last = changes[changes.length - 1]!
+    if (origIndex >= last.origEnd) {
+      return last.transEnd + (origIndex - last.origEnd)
+    }
+
+    for (let j = 0; j < changes.length; j++) {
+      const c = changes[j]!
+      if (origIndex >= c.origStart && origIndex <= c.origEnd) {
+        if (c.origEnd === c.origStart) return c.transStart
+        const ratio = (origIndex - c.origStart) / (c.origEnd - c.origStart)
+        return Math.round(c.transStart + ratio * (c.transEnd - c.transStart))
+      }
+      if (j < changes.length - 1) {
+        const next = changes[j + 1]!
+        if (origIndex > c.origEnd && origIndex < next.origStart) {
+          return c.transEnd + (origIndex - c.origEnd)
+        }
+      }
+    }
+    return origIndex
+  }
+
+  return {
+    text: transText,
+    changes,
+    reverseIndex,
+    forwardIndex,
+  }
 }
 
 export function translateGermanTime(input: string): string {
-  // Convert German time notation like "15 uhr" -> "15:00"
-  let text = input.replace(/(\d+)\s*uhr/gi, '$1:00')
-
-  const tokens = text.split(/\s+/)
-  const translated = tokens.map(token => {
-    // Strip surrounding punctuation for matching
-    const clean = token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
-    if (!clean) return token
-
-    const match = findFuzzyMatch(clean)
-    return match ?? token
-  })
-
-  return translated.join(' ')
+  return translateGermanTimeWithMap(input).text
 }
 
