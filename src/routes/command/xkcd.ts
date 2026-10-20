@@ -46,7 +46,7 @@ const route = defineCordoRoute(async i => {
     }
 
     const cleanedAlt = truncateString(cleanAltText(comic.alt), 1000)
-    const caption = `[#${comic.num}: ${comic.title}](https://xkcd.com/${comic.num}/)${cleanedAlt ? `\n*${cleanedAlt}*` : ''}`
+    const caption = `[#${comic.num}: ${comic.title}](https://xkcd.com/${comic.num}/)${cleanedAlt ? `\n-# *${cleanedAlt}*` : ''}`
 
     i.render(
       gallery(image(comic.img).description(cleanedAlt)),
