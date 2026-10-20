@@ -7,7 +7,8 @@
     "dev": "bun run --watch ./src/index.ts",
     "test": "DATABASE_URL=:memory: bun test",
     "import:dump": "bun run ./scripts/import-dump.ts",
-    "gpu-time": "bun run ./scripts/gpu-time-live.ts"
+    "gpu-time": "bun run ./scripts/gpu-time-live.ts",
+    "enrich:xkcd": "bun run ./scripts/enrich-xkcd.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -17,7 +18,7 @@
   },
   "dependencies": {
     "axios": "^1.8.4",
-    "cordo": "^2.16.5",
+    "cordo": "^2.17.0",
     "discord.js": "^14.21.0",
     "gpu-time": "^0.5.0",
     "hono": "^4.7.7",

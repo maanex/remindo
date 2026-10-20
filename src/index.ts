@@ -7,6 +7,7 @@ import { handleChatMessage } from "./listeners/chat-commands"
 import { initTempVoice } from "./services/temp-voice"
 import { handleChannelDelete, handleVoiceStateUpdate } from "./listeners/temp-voice"
 import { initBackup } from "./services/backup"
+import { initXkcd } from "./services/xkcd"
 
 await Cordo.mountCordo({
   client: {
@@ -39,6 +40,7 @@ client.once(Events.ClientReady, () => {
   initReminders(client);
   initTempVoice(client);
   initBackup();
+  initXkcd();
 });
 
 client.login(process.env.DISCORD_API_KEY)

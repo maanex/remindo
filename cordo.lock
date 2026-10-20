@@ -2,9 +2,9 @@
 cordo lockfile version 1
 
 [reg]
-idc 14
+idc 15
 lutc 0
-csync f7435266dfe221e0358947f81b3cedfe8b061e32703521808138e4fbccf79a24
+csync 485915dc33fb40229a14be8573ecee23fc8facf3c43c3cecab10679d6de1b6c6
 
 [routes]
 000 command/test.ts
@@ -21,6 +21,7 @@ a00 reminders/[id]/snooze.ts
 b00 reminders/[id]/subscribe.ts
 c00 reminders/[id]/unsubscribe.ts
 d00 command/define.ts
+e00 command/xkcd.ts
 
 [lut]
 
