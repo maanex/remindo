@@ -69,7 +69,7 @@ export async function handleChatMessage(message: Message): Promise<void> {
     try {
       const refMessage = await message.channel.messages.fetch(message.reference.messageId)
       if (refMessage?.content)
-        parsed.title = `[${truncateString(refMessage.content, 200).trim()}](${refMessage.url})`
+        parsed.title = `*"${truncateString(refMessage.content, 200).trim()}"* ${refMessage.url}`
     } catch {}
   }
 
