@@ -2,6 +2,7 @@ import { MessageFlags, type Message } from 'discord.js'
 import { resolveTimeRules } from '../lib/resolve-time'
 import { createReminder } from '../lib/create-reminder'
 import { renderCordoComponents } from '../lib/cordo'
+import { truncateString } from '../lib/text'
 
 export type ParsedChatReminder = {
   when: string
@@ -63,6 +64,14 @@ export async function handleChatMessage(message: Message): Promise<void> {
   const parsed = await splitTimeAndTitle(content)
   if (!parsed?.when)
     return react(message)
+
+  if (!parsed.title && message.reference?.messageId) {
+    try {
+      const refMessage = await message.channel.messages.fetch(message.reference.messageId)
+      if (refMessage?.content)
+        parsed.title = `[${truncateString(refMessage.content, 200).trim()}](${refMessage.url})`
+    } catch {}
+  }
 
   // console.log(await resolveTimeRules(parsed.when, { maxItems: 10 }))
 
