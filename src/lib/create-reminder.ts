@@ -11,6 +11,7 @@ export type CreateReminderParams = {
   userId: string
   sourceId?: string | null
   referenceDate?: Date
+  kevMode?: boolean
 }
 
 export type CreateReminderResult = {
@@ -63,11 +64,12 @@ export async function createReminder(params: CreateReminderParams): Promise<Crea
 
   const recurrenceNote = detectedRrule ? ' 🔄' : ''
   const topic = params.title ? `about **${params.title}** ` : ''
+  const user = params.kevMode ? 'Kev' : 'you'
 
   const messageText = registeredTimes.length === 1
-    ? `I'll remind you ${topic}<t:${Math.floor(registeredTimes[0]! / 1000)}:R>${recurrenceNote}`
+    ? `I'll remind ${user} ${topic}<t:${Math.floor(registeredTimes[0]! / 1000)}:R>${recurrenceNote}`
     : [
-        `I'll remind you ${topic}${recurrenceNote}`,
+        `I'll remind ${user} ${topic}${recurrenceNote}`,
         ...registeredTimes.slice(0, 10).map(t => `- <t:${Math.floor(t / 1000)}:R>`),
         ...(registeredTimes.length > 10 ? [`- ... and ${registeredTimes.length - 10} more`] : []),
       ].join('\n')

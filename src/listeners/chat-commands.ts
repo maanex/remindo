@@ -3,6 +3,9 @@ import { resolveTimeRules } from '../lib/resolve-time'
 import { createReminder } from '../lib/create-reminder'
 import { renderCordoComponents } from '../lib/cordo'
 import { truncateString } from '../lib/text'
+import { subscribeUser } from '../services/reminders'
+
+const KEV = '229645063406223360'
 
 export type ParsedChatReminder = {
   when: string
@@ -92,7 +95,9 @@ export async function handleChatMessage(message: Message): Promise<void> {
       title: parsed.title,
       channelId: message.channelId,
       guildId: message.guildId ?? null,
-      userId: message.author.id,
+      userId: lowerStart.startsWith('!remindkev')
+        ? KEV
+        : message.author.id,
       sourceId: message.id,
     })
 
