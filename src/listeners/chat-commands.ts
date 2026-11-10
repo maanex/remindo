@@ -90,15 +90,17 @@ export async function handleChatMessage(message: Message): Promise<void> {
     parsed.title = `*"${truncateString(refMessage.content, 200).trim()}"* ${refMessage.url}`
 
   try {
+    const kevMode = lowerStart.startsWith('!remindkev')
     const result = await createReminder({
       whenInput: parsed.when,
       title: parsed.title,
       channelId: message.channelId,
       guildId: message.guildId ?? null,
-      userId: lowerStart.startsWith('!remindkev')
+      userId: kevMode
         ? KEV
         : message.author.id,
       sourceId: message.id,
+      kevMode
     })
 
     await message.reply({
