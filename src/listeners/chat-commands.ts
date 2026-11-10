@@ -49,6 +49,16 @@ async function react(message: Message, emoji = '❌'): Promise<void> {
   } catch {}
 }
 
+async function fetchReferencedMessage(message: Message): Promise<Message | undefined> {
+  if (!message.reference?.messageId)
+    return undefined
+  try {
+    return await message.channel.messages.fetch(message.reference.messageId)
+  } catch {
+    return undefined
+  }
+}
+
 export async function handleChatMessage(message: Message): Promise<void> {
   if (message.author.bot)
     return
@@ -58,22 +68,23 @@ export async function handleChatMessage(message: Message): Promise<void> {
 
   // content without !remindme or !rm prefix
   const content = message.content.slice(message.content.split(' ')[0]!.length).trim()
-  if (!content)
-    return react(message, '❔')
+  const refMessage = await fetchReferencedMessage(message)
 
-  const parsed = await splitTimeAndTitle(content)
+  let parsed: ParsedChatReminder | undefined
+  if (content) {
+    parsed = await splitTimeAndTitle(content)
+  } else if (refMessage?.content) {
+    // no explicit time: infer it from the replied-to message
+    parsed = { when: refMessage.content.trim() }
+  } else {
+    return react(message, '❔')
+  }
+
   if (!parsed?.when)
     return react(message)
 
-  if (!parsed.title && message.reference?.messageId) {
-    try {
-      const refMessage = await message.channel.messages.fetch(message.reference.messageId)
-      if (refMessage?.content)
-        parsed.title = `*"${truncateString(refMessage.content, 200).trim()}"* ${refMessage.url}`
-    } catch {}
-  }
-
-  // console.log(await resolveTimeRules(parsed.when, { maxItems: 10 }))
+  if (!parsed.title && refMessage?.content)
+    parsed.title = `*"${truncateString(refMessage.content, 200).trim()}"* ${refMessage.url}`
 
   try {
     const result = await createReminder({
