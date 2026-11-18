@@ -1,5 +1,5 @@
 import { enforcePrivateResponse, gallery, image, text } from "cordo/components"
-import { defineCordoAutocomplete, defineCordoCommand, defineCordoRoute } from "cordo/core"
+import { defineCordoCommand, defineCordoRoute } from "cordo/core"
 import { truncateString } from "../../lib/text"
 import { autocompleteXkcd, resolveBestXkcd } from "../../services/xkcd"
 
@@ -72,9 +72,9 @@ export default defineCordoCommand({
       name: 'comic',
       description: 'The comic number, title, or keywords to search for',
       required: true,
-      choices: defineCordoAutocomplete(async (val) => {
+      choices: async (val) => {
         return await autocompleteXkcd(String(val ?? ''))
-      }),
+      },
     },
   ],
   route,

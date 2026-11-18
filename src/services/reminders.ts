@@ -36,6 +36,7 @@ const SNOOZE_OPTIONS = [
   { label: '2 days', value: ms('2d').toString() },
   { label: '5 days', value: ms('5d').toString() },
   { label: 'Surprise me', value: 'surprise' },
+  { label: 'Custom duration', value: 'custom' },
 ]
 
 type Timer = ReturnType<typeof setTimeout>
@@ -63,7 +64,13 @@ export function formatReminderTitle(title?: string | null, snoozeCount = 0): str
   return baseTitle
 }
 
-export function buildReminderComponents(data: ReminderData, opts?: { snoozeOpen?: boolean, snoozeText?: string }) {
+export type ReminderComponentOpts = {
+  snoozeOpen?: boolean
+  snoozeText?: string
+  snoozePlaceholder?: string
+}
+
+export function buildReminderComponents(data: ReminderData, opts?: ReminderComponentOpts) {
   const content = formatReminderTitle(data.title, data.snooze_count)
   // const pings = (data.rrule ? '🔄 ' : '⏰ ')
   const pings = (data.rrule ? '🔄 ' : '')
@@ -74,7 +81,7 @@ export function buildReminderComponents(data: ReminderData, opts?: { snoozeOpen?
     return [
       text(pings, content),
       selectString()
-        .placeholder('Select Snooze Delay')
+        .placeholder(opts.snoozePlaceholder ?? 'Select Snooze Delay')
         .setOptions(SNOOZE_OPTIONS)
         .onSubmit(goto(`reminders/${data.id}/snooze`))
     ]
@@ -102,7 +109,7 @@ export function buildReminderComponents(data: ReminderData, opts?: { snoozeOpen?
   ]
 }
 
-export function renderReminderComponents(data: ReminderData, opts?: { snoozeOpen?: boolean, snoozeText?: string }): any[] {
+export function renderReminderComponents(data: ReminderData, opts?: ReminderComponentOpts): any[] {
   return renderCordoComponents(buildReminderComponents(data, opts))
 }
 
