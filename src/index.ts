@@ -8,6 +8,7 @@ import { initTempVoice } from "./services/temp-voice"
 import { handleChannelDelete, handleVoiceStateUpdate } from "./listeners/temp-voice"
 import { initBackup } from "./services/backup"
 import { initXkcd } from "./services/xkcd"
+import { initServer } from "./server"
 
 await Cordo.mountCordo({
   client: {
@@ -42,6 +43,8 @@ client.once(Events.ClientReady, () => {
   initBackup();
   initXkcd();
 });
+
+initServer();
 
 client.login(process.env.DISCORD_API_KEY)
 

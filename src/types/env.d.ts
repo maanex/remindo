@@ -9,6 +9,9 @@ declare global {
       BACKUP_WEBHOOK_URL?: string
       DISCORD_BACKUP_WEBHOOK_URL?: string
       BACKUP_INTERVAL_HOURS?: string
+      PORT?: string
+      PUBLIC_URL?: string
+      ICAL_JWT_SECRET?: string
     }
   }
 }

@@ -376,6 +376,46 @@ export async function getRemindersForUser(userId: string): Promise<ReminderData[
   return reminders.sort((a, b) => a.time - b.time)
 }
 
+/**
+ * Returns all active persisted reminders matching every provided filter.
+ * At least one filter must be set.
+ */
+export function getRemindersByScope(scope: { userId?: string, guildId?: string, channelId?: string }): Reminder[] {
+  const conditions = [ '(r.triggered_at IS NULL OR r.triggered_at = 0)' ]
+  const params: Record<string, string> = {}
+
+  if (scope.userId) {
+    conditions.push('EXISTS (SELECT 1 FROM reminder_sub rs WHERE rs.reminder_id = r.id AND rs.user_id = $userId)')
+    params.$userId = scope.userId
+  }
+  if (scope.guildId) {
+    conditions.push('r.guild_id = $guildId')
+    params.$guildId = scope.guildId
+  }
+  if (scope.channelId) {
+    conditions.push('r.channel_id = $channelId')
+    params.$channelId = scope.channelId
+  }
+
+  if (Object.keys(params).length === 0)
+    return []
+
+  return db.query(`
+    SELECT r.* FROM reminder r
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY r.time ASC
+  `).all(params as any) as Reminder[]
+}
+
+/** Builds a discord link to the reminder's source message (or channel if there is none) */
+export function getReminderJumpUrl(r: Pick<Reminder, 'channel_id' | 'guild_id' | 'source_id'>, fallbackGuildId?: string | null): string {
+  const channel = discordClient?.channels?.resolve?.(r.channel_id) as TextChannel | null | undefined
+  const scope = r.guild_id ?? channel?.guildId ?? fallbackGuildId ?? '@me'
+  return r.source_id
+    ? `https://discord.com/channels/${scope}/${r.channel_id}/${r.source_id}`
+    : `https://discord.com/channels/${scope}/${r.channel_id}`
+}
+
 // --- Recurrence & Dispatch Helpers ---
 
 function rollForwardRecurring(data: ReminderData): boolean {

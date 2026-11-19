@@ -1,27 +1,15 @@
-import { button, container, section, text } from "cordo/components"
+import { button, container, row, section, text } from "cordo/components"
 import { defineCordoCommand, defineCordoRoute } from "cordo/core"
 import { goto, run } from "cordo/functions"
-import type { TextChannel } from "discord.js"
 import { formatReminderTimestamp } from "../../lib/format-timestamp"
 import { formatRecurrence } from "../../lib/recurrence"
 import { truncateString } from "../../lib/text"
-import { formatReminderTitle, getDiscordClient, getRemindersForUser } from "../../services/reminders"
+import { formatReminderTitle, getReminderJumpUrl, getRemindersForUser } from "../../services/reminders"
 
 const route = defineCordoRoute(async i => {
   const reminders = await getRemindersForUser(i.user.id)
-
-  if (!reminders || reminders.length === 0) {
-    i.render(
-      container(
-        text('Your Reminders').size('h3'),
-        text('*You currently have no active reminders.*'),
-      ),
-    )
-    return
-  }
-
-  const isEditing = i.locals.has('edit')
-  const client = getDiscordClient()
+  const hasReminders = reminders.length > 0
+  const isEditing = hasReminders && i.locals.has('edit')
 
   const reminderItems = reminders.map(r => {
     const timeTag = formatReminderTimestamp(r.time)
@@ -29,16 +17,9 @@ const route = defineCordoRoute(async i => {
     const titleText = formatReminderTitle(truncatedTitle || null, r.snooze_count)
     const recurrenceInfo = r.rrule ? ` \`🔄 ${formatRecurrence(r.rrule)}\`` : ''
 
-    const channel = client?.channels?.resolve?.(r.channel_id) as TextChannel | null | undefined
-    const targetGuild = r.guild_id ?? channel?.guildId ?? (i.location === 'guild' && i.channel?.id === r.channel_id ? i.guild.id : null)
-    const jumpScope = targetGuild ?? '@me'
-
-    const line = `${timeTag} ${titleText}${recurrenceInfo}`
-    const jumpUrl = r.source_id
-      ? `https://discord.com/channels/${jumpScope}/${r.channel_id}/${r.source_id}`
-      : `https://discord.com/channels/${jumpScope}/${r.channel_id}`
-
-    const formatted = `[**🡥**](${jumpUrl}) ${line}`
+    const fallbackGuild = i.location === 'guild' && i.channel?.id === r.channel_id ? i.guild.id : null
+    const jumpUrl = getReminderJumpUrl(r, fallbackGuild)
+    const formatted = `[**🡥**](${jumpUrl}) ${timeTag} ${titleText}${recurrenceInfo}`
 
     if (!isEditing)
       return text(formatted)
@@ -49,28 +30,42 @@ const route = defineCordoRoute(async i => {
       button()
         .emoji('❌')
         .style('secondary')
-        .onClick(goto(`reminders/${r.id}/cancel`, { private: true })),
+        .onClick(
+          run(`reminders/${r.id}/cancel`, { wait: true }),
+          run('utils/with-local-true/edit', { wait: true }),
+          goto('.', { private: true }),
+        ),
     )
   }).slice(0, isEditing ? 10 : 25)
 
-  const header = isEditing
-    ? text('Your Reminders').size('h3')
-    : section(
-        text('Your Reminders').size('h3'),
-      ).decorate(
-        button()
-          .label('Edit')
-          .style('secondary')
-          .onClick(
-            run('utils/with-local-true/edit', { wait: true }),
-            goto('command/reminders', { private: true }),
-          ),
-      )
+  const editButton = isEditing
+    ? button()
+        .label('Done')
+        .style('primary')
+        .onClick(goto('.', { private: true }))
+    : button()
+        .label('Edit')
+        .style('secondary')
+        .onClick(
+          run('utils/with-local-true/edit', { wait: true }),
+          goto('.', { private: true }),
+        )
+
+  const icalButton = button()
+    .label('Ical Link')
+    .style('secondary')
+    .disabled(isEditing)
+    .onClick(goto('reminders/ical-links'))
 
   i.render(
     container(
-      header,
-      ...reminderItems,
+      text('Your Reminders').size('h3'),
+      ...(hasReminders
+        ? reminderItems
+        : [ text('*You currently have no active reminders.*') ]),
+      hasReminders
+        ? row(editButton, icalButton)
+        : row(icalButton),
     ),
   )
 })
